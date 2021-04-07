@@ -147,6 +147,138 @@ def user_has_mod_perm(guild: discord.Guild, user_id: int) -> bool:
     return user_id == admin_id or mod_role in user.roles
 
 
+async def help(command, message):
+    await message.channel.send(HELP_MSG)
+
+
+async def set_prefix(command, message):
+    if len(command) < 2:
+        await message.channel.send("Kein neues Präfix angegeben.")
+        return
+    settings.prefix = command[1]
+    settings.save()
+    await message.channel.send(f"Neues Präfix ist nun `{settings.prefix}`.")
+
+
+async def whoami(command, message):
+    if user_has_mod_perm(message.guild, message.author.id):
+        await message.channel.send(f"Du darfst Einstellungen vornehmen.")
+    else:
+        await message.channel.send(f"Du darfst keine Einstellungen vornehmen.")
+
+
+async def rm(command, message):
+    await message.channel.send("YOLO!!!!!! ||Nur ein Witz. Wer würde denn auch so verrückt sein und einfach etwas löschen. _Erinnert sich an sein Legacy-Backup_||")
+
+
+async def set_mod_role(command, message):
+    role = get(message.guild.roles, name=command[1])
+    if role is None:
+        await message.channel.send("Diese Rolle scheint es nicht zu geben.")
+        return
+
+    settings.mod_role = role
+    settings.save()
+    await message.channel.send("Moderator-Rolle erfolgreich gesetzt.")
+
+
+async def send_role_message(command, message):
+    if len(command) < 2:
+        await message.channel.send("Kein Channel angegeben.")
+        return
+    if not command[1].isdigit():
+        await message.channel.send("Die Channel-ID scheint keine Zahl zu sein. IDs in Discord sind immer Zahlen.")
+        return
+    channel = client.get_channel(int(command[1]))
+    if channel is None:
+        await message.channel.send("Der Channel scheint nicht zu existieren.")
+        return
+
+    message = await channel.send("Benutze die Reaktionen unter dieser Nachricht, um dir selber Rollen zu geben.")
+    settings.roles_msg = message.id
+    settings.roles_channel = channel.id
+    settings.save()
+    # add reactions to easily click on them
+    for emoji in map(lambda id: get(message.guild.emojis, id=int(id)), settings.roles.keys()):
+        await message.add_reaction(emoji)
+
+
+async def add_role(command, message):
+    if len(command) < 3:
+        await message.channel.send("Es wurden zu wenig Argumente angegeben.")
+        return
+
+    emoji_match = EMOJI_REGEX.match(command[1])
+    if emoji_match is None:
+        await message.channel.send("Das erste Argument scheint kein custom Emoji sein.")
+        return
+    emoji_id = emoji_match.group(1)
+
+    role = get(message.guild.roles, name=command[2])
+    if role is None:
+        await message.channel.send("Diese Rolle scheint es nicht zu geben.")
+        return
+    if role in settings.roles.values():
+        await message.channel.send("Die Rolle ist bereits verlinkt.")
+        return
+
+    settings.roles[emoji_id] = role
+    settings.save()
+    await message.channel.send("Rolle verlinkt.")
+
+    # add the new role to the message, if it was sent yet
+    if settings.roles_msg is None:
+        return
+    channel = client.get_channel(settings.roles_channel)
+    message = await channel.fetch_message(settings.roles_msg)
+    emoji = get(message.guild.emojis, id=int(emoji_id))
+    await message.add_reaction(emoji)
+
+
+async def remove_role(command, message):
+    if len(command) < 3:
+        await message.channel.send("Es wurden zu wenig Argumente angegeben.")
+        return
+
+    emoji_match = EMOJI_REGEX.match(command[1])
+    if emoji_match is None:
+        await message.channel.send("Das erste Argument scheint kein custom Emoji sein.")
+        return
+    emoji_id = emoji_match.group(1)
+
+    role = get(message.guild.roles, name=command[2])
+    if role is None:
+        await message.channel.send("Diese Rolle scheint es nicht zu geben.")
+        return
+    if role in settings.roles.values():
+        await message.channel.send("Die Rolle ist bereits verlinkt.")
+        return
+
+    settings.roles[emoji_id] = role
+    settings.save()
+    await message.channel.send("Rolle verlinkt.")
+
+    # add the new role to the message, if it was sent yet
+    if settings.roles_msg is None:
+        return
+    channel = client.get_channel(settings.roles_channel)
+    message = await channel.fetch_message(settings.roles_msg)
+    emoji = get(message.guild.emojis, id=int(emoji_id))
+    await message.add_reaction(emoji)
+
+
+COMMANDS = {
+    "help": {"fn": help, "requires_mod": False},
+    "prefix": {"fn": set_prefix, "requires_mod": True},
+    "whoami": {"fn": whoami, "requires_mod": False},
+    "rm": {"fn": rm, "requires_mod": True},
+    "set-mod-role": {"fn": set_mod_role, "requires_mod": True},
+    "send-role-message": {"fn": send_role_message, "requires_mod": True},
+    "add-role": {"fn": add_role, "requires_mod": True},
+    "remove-role": {"fn": remove_role, "requires_mod": True}
+}
+
+
 @client.event
 async def on_ready():
     logging.info(f"Login as {client.user}")
@@ -179,129 +311,12 @@ async def on_message(message):
             if not command:  # e.g. just 'archer' or 'archer '
                 continue
 
-            elif command[0].lower() == "help":
-                await message.channel.send(HELP_MSG)
-
-            elif command[0].lower() == "prefix":
-                if not user_has_mod_perm(message.guild, message.author.id):
-                    await message.channel.send(get_sudo_denied_message(message.author))
-                    return
-
-                if len(command) < 2:
-                    await message.channel.send("Kein neues Präfix angegeben.")
-                    return
-                settings.prefix = command[1]
-                await message.channel.send(f"Neues Präfix ist nun `{settings.prefix}`.")
-
-            elif command[0].lower() == "whoami":
-                if user_has_mod_perm(message.guild, message.author.id):
-                    await message.channel.send(f"Du darfst Einstellungen vornehmen.")
-                else:
-                    await message.channel.send(f"Du darfst keine Einstellungen vornehmen.")
-
-            elif command[0].lower() == "set-mod-role":
-                if not user_has_mod_perm(message.guild, message.author.id):
-                    await message.channel.send(get_sudo_denied_message(message.author))
-                    return
-
-                role = get(message.guild.roles, name=command[1])
-                if role is None:
-                    await message.channel.send("Diese Rolle scheint es nicht zu geben.")
-                    return
-
-                settings.mod_role = role
-                settings.save()
-                await message.channel.send("Moderator-Rolle erfolgreich gesetzt.")
-
-            elif command[0].lower() == "send-role-message":
-                if not user_has_mod_perm(message.guild, message.author.id):
-                    await message.channel.send(get_sudo_denied_message(message.author))
-                    return
-
-                if len(command) < 2:
-                    await message.channel.send("Kein Channel angegeben.")
-                    return
-                if not command[1].isdigit():
-                    await message.channel.send("Die Channel-ID scheint keine Zahl zu sein. IDs in Discord sind immer Zahlen.")
-                    return
-                channel = client.get_channel(int(command[1]))
-                if channel is None:
-                    await message.channel.send("Der Channel scheint nicht zu existieren.")
-                    return
-
-                message = await channel.send("Benutze die Reaktionen unter dieser Nachricht, um dir selber Rollen zu geben.")
-                settings.roles_msg = message.id
-                settings.roles_channel = channel.id
-                settings.save()
-                # add reactions to easily click on them
-                for emoji in map(lambda id: get(message.guild.emojis, id=int(id)), settings.roles.keys()):
-                    await message.add_reaction(emoji)
-
-            elif command[0].lower() == "add-role":
-                if not user_has_mod_perm(message.guild, message.author.id):
-                    await message.channel.send(get_sudo_denied_message(message.author))
-                    return
-
-                if len(command) < 3:
-                    await message.channel.send("Es wurden zu wenig Argumente angegeben.")
-                    return
-
-                emoji_match = EMOJI_REGEX.match(command[1])
-                if emoji_match is None:
-                    await message.channel.send("Das erste Argument scheint kein custom Emoji sein.")
-                    return
-                emoji_id = emoji_match.group(1)
-
-                role = get(message.guild.roles, name=command[2])
-                if role is None:
-                    await message.channel.send("Diese Rolle scheint es nicht zu geben.")
-                    return
-                if role in settings.roles.values():
-                    await message.channel.send("Die Rolle ist bereits verlinkt.")
-                    return
-
-                settings.roles[emoji_id] = role
-                settings.save()
-                await message.channel.send("Rolle verlinkt.")
-
-                # add the new role to the message, if it was sent yet
-                if settings.roles_msg is None:
-                    return
-                channel = client.get_channel(settings.roles_channel)
-                message = await channel.fetch_message(settings.roles_msg)
-                emoji = get(message.guild.emojis, id=int(emoji_id))
-                await message.add_reaction(emoji)
-
-            elif command[0].lower() == "remove-role":
-                if not user_has_mod_perm(message.guild, message.author.id):
-                    await message.channel.send(get_sudo_denied_message(message.author))
-                    return
-
-                if len(command) < 2:
-                    await message.channel.send("Kein Emoji angegeben.")
-                    return
-
-                emoji_match = EMOJI_REGEX.match(command[1])
-                if emoji_match is None:
-                    await message.channel.send("Das Argument scheint kein custom Emoji sein.")
-                    return
-                emoji_id = emoji_match.group(1)
-
-                if emoji_id not in settings.roles.keys():
-                    await message.channel.send("Es gibt gar keine Rolle für diesen Emoji.")
-                    return
-
-                del settings.roles[emoji_id]
-                settings.save()
-                await message.channel.send("Rolle gelöscht.")
-
-                if settings.roles_msg is None:
-                    return
-                channel = client.get_channel(settings.roles_channel)
-                message = await channel.fetch_message(settings.roles_msg)
-                emoji = get(message.guild.emojis, id=int(emoji_id))
-                await message.remove_reaction(emoji, message.author)
-
+            if command[0] in COMMANDS.keys():
+                if COMMANDS[command[0]]["requires_mod"]:
+                    if not user_has_mod_perm(message.guild, message.author.id):
+                        await message.channel.send(get_sudo_denied_message(message.author))
+                        return
+                await COMMANDS[command[0]]["fn"](command, message)
             else:
                 await message.channel.send(f"Unbekannter Befehl. Benutze `{settings.prefix}help` für Hilfe.")
                 return
