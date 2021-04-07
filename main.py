@@ -15,7 +15,9 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
 import logging
+import os
 import random
 import re
 import shlex
@@ -76,6 +78,7 @@ HELP_MSG = """\
 April 2021
 ```
 """
+SAVEFILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "SETTINGS")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
 EMOJI_REGEX = re.compile("<:.+:([0-9]+)>")
 ARCH_RESPONSES = [
@@ -87,13 +90,50 @@ ARCH_RESPONSES = [
 ]
 
 
+class Settings:
+    prefix = "archer "
+    roles_msg = None  # the message where roles are given by reactions
+    roles_channel = None  # the channel where the message is in
+    mod_role = None
+    roles = {}  # key is the reaction emoji, value is the role
+    loaded = False
+
+    def save(self):
+        if self.mod_role is None:
+            mod_role = None
+        else:
+            mod_role = self.mod_role.id
+        as_dict = {
+            "prefix": self.prefix,
+            "roles_msg": self.roles_msg,
+            "roles_channel": self.roles_channel,
+            "mod_role": mod_role,
+            "roles": {emoji: role.id for emoji, role in self.roles.items()},
+        }
+        with open(SAVEFILE, "w") as fh:
+            fh.write(json.dumps(as_dict))
+
+    def load(self, guild: discord.Guild):
+        try:
+            with open(SAVEFILE) as fh:
+                as_dict = json.loads(fh.read())
+            self.prefix = as_dict["prefix"]
+            self.roles_msg = as_dict["roles_msg"]
+            self.roles_channel = as_dict["roles_channel"]
+            if as_dict["mod_role"]:
+                self.mod_role = guild.get_role(as_dict["mod_role"])
+            else:
+                self.mod_role = None
+            self.roles = {emoji: guild.get_role(role) for emoji, role in as_dict["roles"].items()}
+        except:
+            # it probably just doesn't exist yet
+            pass
+        self.loaded = True
+
+
 intents = discord.Intents(members=True, emojis=True, messages=True, reactions=True, guilds=True)
 client = discord.Client(intents=intents)
-prefix = "archer "
-roles_msg = None  # the message where roles are given by reactions
-roles_channel = None  # the channel where the message is in
-mod_role = None
-roles = {}  # key is the reaction emoji, value is the role
+settings = Settings()
 
 
 def get_sudo_denied_message(user: discord.Member) -> str:
@@ -114,10 +154,9 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    global prefix
-    global mod_role
-    global roles_msg
-    global roles_channel
+    global settings
+    if not settings.loaded:
+        settings.load(message.guild)
     is_command = False
 
     if message.author == client.user:
@@ -130,9 +169,9 @@ async def on_message(message):
     # for "scripts"
     lines = message.content.splitlines()
     for line in lines:
-        if line.startswith(prefix):
+        if line.startswith(settings.prefix):
             is_command = True
-            command = line[len(prefix):]  # strip the prefix
+            command = line[len(settings.prefix):]  # strip the prefix
             command = shlex.split(command)  # shlex allows easy shell-like parsing
 
             logging.info(f"Command issued by {message.author.name}#{message.author.discriminator}: {command}")
@@ -151,8 +190,8 @@ async def on_message(message):
                 if len(command) < 2:
                     await message.channel.send("Kein neues Präfix angegeben.")
                     return
-                prefix = command[1]
-                await message.channel.send(f"Neues Präfix ist nun `{prefix}`.")
+                settings.prefix = command[1]
+                await message.channel.send(f"Neues Präfix ist nun `{settings.prefix}`.")
 
             elif command[0].lower() == "whoami":
                 if user_has_mod_perm(message.guild, message.author.id):
@@ -170,7 +209,8 @@ async def on_message(message):
                     await message.channel.send("Diese Rolle scheint es nicht zu geben.")
                     return
 
-                mod_role = role
+                settings.mod_role = role
+                settings.save()
                 await message.channel.send("Moderator-Rolle erfolgreich gesetzt.")
 
             elif command[0].lower() == "send-role-message":
@@ -190,10 +230,11 @@ async def on_message(message):
                     return
 
                 message = await channel.send("Benutze die Reaktionen unter dieser Nachricht, um dir selber Rollen zu geben.")
-                roles_msg = message.id
-                roles_channel = channel.id
+                settings.roles_msg = message.id
+                settings.roles_channel = channel.id
+                settings.save()
                 # add reactions to easily click on them
-                for emoji in map(lambda id: get(message.guild.emojis, id=int(id)), roles.keys()):
+                for emoji in map(lambda id: get(message.guild.emojis, id=int(id)), settings.roles.keys()):
                     await message.add_reaction(emoji)
 
             elif command[0].lower() == "add-role":
@@ -215,18 +256,19 @@ async def on_message(message):
                 if role is None:
                     await message.channel.send("Diese Rolle scheint es nicht zu geben.")
                     return
-                if role in roles.values():
+                if role in settings.roles.values():
                     await message.channel.send("Die Rolle ist bereits verlinkt.")
                     return
 
-                roles[emoji_id] = role
+                settings.roles[emoji_id] = role
+                settings.save()
                 await message.channel.send("Rolle verlinkt.")
 
                 # add the new role to the message, if it was sent yet
-                if roles_msg is None:
+                if settings.roles_msg is None:
                     return
-                channel = client.get_channel(roles_channel)
-                message = await channel.fetch_message(roles_msg)
+                channel = client.get_channel(settings.roles_channel)
+                message = await channel.fetch_message(settings.roles_msg)
                 emoji = get(message.guild.emojis, id=int(emoji_id))
                 await message.add_reaction(emoji)
 
@@ -245,22 +287,23 @@ async def on_message(message):
                     return
                 emoji_id = emoji_match.group(1)
 
-                if emoji_id not in roles.keys():
+                if emoji_id not in settings.roles.keys():
                     await message.channel.send("Es gibt gar keine Rolle für diesen Emoji.")
                     return
 
-                del roles[emoji_id]
+                del settings.roles[emoji_id]
+                settings.save()
                 await message.channel.send("Rolle gelöscht.")
 
-                if roles_msg is None:
+                if settings.roles_msg is None:
                     return
-                channel = client.get_channel(roles_channel)
-                message = await channel.fetch_message(roles_msg)
+                channel = client.get_channel(settings.roles_channel)
+                message = await channel.fetch_message(settings.roles_msg)
                 emoji = get(message.guild.emojis, id=int(emoji_id))
                 await message.remove_reaction(emoji, message.author)
 
             else:
-                await message.channel.send(f"Unbekannter Befehl. Benutze `{prefix}help` für Hilfe.")
+                await message.channel.send(f"Unbekannter Befehl. Benutze `{settings.prefix}help` für Hilfe.")
                 return
 
     if "arch" in message.content.lower() and not is_command:
@@ -269,28 +312,32 @@ async def on_message(message):
 
 @client.event
 async def on_raw_reaction_add(payload):
+    if not settings.loaded:
+        settings.load(client.get_guild(payload.guild_id))
     if payload.user_id == client.user.id:
         # avoid applying roles to self
         return
 
-    emoji_matches = str(payload.emoji.id) in roles.keys()
-    message_matches = payload.message_id == roles_msg
+    emoji_matches = str(payload.emoji.id) in settings.roles.keys()
+    message_matches = payload.message_id == settings.roles_msg
     if emoji_matches and message_matches:
         # can't use get_user here because we need a Member, not a User
         guild = client.get_guild(payload.guild_id)
         member = guild.get_member(payload.user_id)
-        role = roles[str(payload.emoji.id)]
+        role = settings.roles[str(payload.emoji.id)]
         await member.add_roles(role, reason="Automatically through Reaction Roles")
 
 
 @client.event
 async def on_raw_reaction_remove(payload):
-    emoji_matches = str(payload.emoji.id) in roles.keys()
-    message_matches = payload.message_id == roles_msg
+    if not settings.loaded:
+        settings.load(client.get_guild(payload.guild_id))
+    emoji_matches = str(payload.emoji.id) in settings.roles.keys()
+    message_matches = payload.message_id == settings.roles_msg
     if emoji_matches and message_matches:
         guild = client.get_guild(payload.guild_id)
         member = guild.get_member(payload.user_id)
-        role = roles[str(payload.emoji.id)]
+        role = settings.roles[str(payload.emoji.id)]
         await member.remove_roles(role, reason="Automatically through Reaction Roles")
 
 
