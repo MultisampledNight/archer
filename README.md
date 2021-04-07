@@ -28,7 +28,12 @@ pip install -r requirements.txt
 Then, create a new file called `TOKEN` in the future working directory of the
 bot. In there, store ONLY the token you get from the [Discord Developer
 Portal](https://discord.com/developers/applications/) when creating a new
-application. Make sure not to leak it. Afterwards, in the same terminal where
+application. Make sure not to leak it.
+
+Next, create a file `ADMIN-ID` in the same folder as the token and put your
+Discord-ID into it. It will be used as a mod-role override.
+
+Afterwards, in the same terminal where
 you created the venv before, do:
 ```sh
 python3 main.py

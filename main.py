@@ -104,7 +104,7 @@ def get_sudo_denied_message(user: discord.Member) -> str:
 
 def user_has_mod_perm(guild: discord.Guild, user_id: int) -> bool:
     user = guild.get_member(user_id)
-    return user_id == 817468254255054908 or mod_role in user.roles
+    return user_id == admin_id or mod_role in user.roles
 
 
 @client.event
@@ -297,6 +297,9 @@ async def on_raw_reaction_remove(payload):
 if __name__ == "__main__":
     with open("TOKEN") as fh:
         token = fh.read()
+
+    with open("ADMIN-ID") as fh:
+        admin_id = int(fh.read())
 
     logging.basicConfig(encoding="utf-8", format=LOGFORMAT, level=logging.INFO)
     client.run(token)
