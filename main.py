@@ -298,6 +298,10 @@ async def on_message(message):
         await message.channel.send("Du kannst diesen Bot nicht in Direktnachrichten benutzen.")
         return
 
+    if any(map(lambda user: user.id == client.user.id, message.mentions)):
+        await message.channel.send(f"Der derzeitige Prefix ist `{settings.prefix}`.")
+        return
+
     # for "scripts"
     lines = message.content.splitlines()
     for line in lines:
