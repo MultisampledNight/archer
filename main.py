@@ -104,7 +104,7 @@ ARCH_RESPONSES = [
 
 RM_RESPONSES = [
     "YOLO!!!!!! ||Nur ein Witz. Wer würde denn auch so verrückt sein und einfach etwas löschen. _Erinnert sich an sein Legacy-Backup_||",
-    "*Uno reverse card*"
+    "*Uno reverse card*",
     "No u!",
     "uwu",
     "***aRe yOU sUrE AbOUt thAT?***"
