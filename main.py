@@ -155,7 +155,7 @@ def get_sudo_denied_message(user: discord.Member) -> str:
 
 def user_has_mod_perm(guild: discord.Guild, user_id: int) -> bool:
     user = guild.get_member(user_id)
-    return user_id == admin_id or mod_role in user.roles
+    return user_id == admin_id or settings.mod_role in user.roles
 
 
 async def help(command, message):
