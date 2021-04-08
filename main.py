@@ -86,6 +86,7 @@ HELP_MSG = """\
 April 2021
 ```
 """
+
 VERSION = "0.1.2"
 SAVEFILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "SETTINGS")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
@@ -95,7 +96,10 @@ ARCH_RESPONSES = [
     "Arch ist toll.",
     "I use Arch btw.",
     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARCH!:wq",
-    "arch?"
+    "arch?",
+    "Habe ich Arch gehört?",
+    "Schonmal Arch installiert?",
+    "Arch for the win!"
 ]
 
 
