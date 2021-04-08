@@ -49,6 +49,9 @@ HELP_MSG = """\
     whoami
         Zeigt an, ob du Einstellungen am Bot verändern darfst.
 
+    show
+        Zeigt die aktuellen Einstellungen (Moderator-Rolle, Präfix...) an.
+
     set-mod-role <role-name>
         Setzt die Moderationsrolle, welche für das Verändern von Einstellungen
         benötigt wird.
@@ -114,6 +117,7 @@ class Settings:
             "roles_msg": self.roles_msg,
             "roles_channel": self.roles_channel,
             "mod_role": mod_role,
+            "distraction_probability": self.distraction_probability,
             "roles": {emoji: role.id for emoji, role in self.roles.items()},
         }
         with open(SAVEFILE, "w") as fh:
@@ -123,14 +127,15 @@ class Settings:
         try:
             with open(SAVEFILE) as fh:
                 as_dict = json.loads(fh.read())
-            self.prefix = as_dict["prefix"]
-            self.roles_msg = as_dict["roles_msg"]
-            self.roles_channel = as_dict["roles_channel"]
-            if as_dict["mod_role"]:
+            self.prefix = as_dict.get("prefix", "archer ")
+            self.roles_msg = as_dict.get("roles_msg", None)
+            self.roles_channel = as_dict.get("roles_channel", None)
+            if as_dict.get("mod_role", None):
                 self.mod_role = guild.get_role(as_dict["mod_role"])
             else:
                 self.mod_role = None
-            self.roles = {emoji: guild.get_role(role) for emoji, role in as_dict["roles"].items()}
+            self.distraction_probability = as_dict.get("distraction_probability", 100)
+            self.roles = {emoji: guild.get_role(role) for emoji, role in as_dict.get("roles", {}).items()}
         except:
             # it probably just doesn't exist yet
             pass
@@ -164,6 +169,14 @@ async def set_prefix(command, message):
     settings.prefix = command[1]
     settings.save()
     await message.channel.send(f"Neues Präfix ist nun `{settings.prefix}`.")
+
+
+async def show(command, message):
+    await message.channel.send(f"""\
+- Moderator-Rolle: `{settings.mod_role.name}`
+- Ablenkungswahrscheinlichkeit: `{settings.distraction_probability} %`
+- Präfix: `{settings.prefix}`
+- Reaction Roles: `{"`, `".join(map(lambda role: role.name, settings.roles.values()))}`""")
 
 
 async def whoami(command, message):
@@ -285,6 +298,7 @@ async def distraction_probability(command, message):
 COMMANDS = {
     "help": {"fn": help, "requires_mod": False},
     "prefix": {"fn": set_prefix, "requires_mod": True},
+    "show": {"fn": show, "requires_mod": False},
     "whoami": {"fn": whoami, "requires_mod": False},
     "rm": {"fn": rm, "requires_mod": True},
     "set-mod-role": {"fn": set_mod_role, "requires_mod": True},
