@@ -63,6 +63,11 @@ HELP_MSG = """\
     remove-role <emoji>
         Entfernt die Verlinkung der Rolle mit dem Emoji.
 
+    distraction-probability <probability>
+        Setzt eine neue Ablenkungswahrscheinlichkeit. Die Wahrscheinlichkeit
+        sollte zum Beispiel für 50 % als 50 angegeben werden, also ohne das
+        Prozentzeichen.
+
 ## BUGS
     Es können nur Custom Emojis als Reaction Roles verwendet werden.
     Manchmal verselbstständigt er sich. Aber nur manchmal.
@@ -96,6 +101,7 @@ class Settings:
     roles_channel = None  # the channel where the message is in
     mod_role = None
     roles = {}  # key is the reaction emoji, value is the role
+    distraction_probability = 100
     loaded = False
 
     def save(self):
@@ -261,6 +267,21 @@ async def remove_role(command, message):
     emoji = get(message.guild.emojis, id=int(emoji_id))
     await message.remove_reaction(emoji, message.author)
 
+
+async def distraction_probability(command, message):
+    if len(command) < 2:
+        await message.channel.send("Keine Wahrscheinlichkeit angegeben.")
+        return
+    
+    if not command[1].isdigit():
+        await message.channel.send("Die Wahrscheinlichkeit scheint keine Zahl zu sein.")
+        return
+
+    settings.distraction_probability = int(command[1])
+    settings.save()
+    await message.channel.send(f"Ablenkungswahrscheinlichkeit auf `{settings.distraction_probability} %` gesetzt.")
+
+
 COMMANDS = {
     "help": {"fn": help, "requires_mod": False},
     "prefix": {"fn": set_prefix, "requires_mod": True},
@@ -269,7 +290,8 @@ COMMANDS = {
     "set-mod-role": {"fn": set_mod_role, "requires_mod": True},
     "send-role-message": {"fn": send_role_message, "requires_mod": True},
     "add-role": {"fn": add_role, "requires_mod": True},
-    "remove-role": {"fn": remove_role, "requires_mod": True}
+    "remove-role": {"fn": remove_role, "requires_mod": True},
+    "distraction-probability": {"fn": distraction_probability, "requires_mod": True}
 }
 
 
@@ -319,7 +341,9 @@ async def on_message(message):
                 await message.channel.send(f"Unbekannter Befehl. Benutze `{settings.prefix}help` für Hilfe.")
                 return
 
-    if "arch" in message.content.lower() and not is_command:
+    if "arch" in message.content.lower() and \
+        not is_command and \
+        random.randint(1, 100) < settings.distraction_probability:
         await message.channel.send(random.choice(ARCH_RESPONSES))
 
 
