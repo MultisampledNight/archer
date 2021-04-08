@@ -87,7 +87,7 @@ April 2021
 ```
 """
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 SAVEFILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "SETTINGS")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
 EMOJI_REGEX = re.compile("<:.+:([0-9]+)>")
@@ -104,7 +104,7 @@ ARCH_RESPONSES = [
 
 RM_RESPONSES = [
     "YOLO!!!!!! ||Nur ein Witz. Wer würde denn auch so verrückt sein und einfach etwas löschen. _Erinnert sich an sein Legacy-Backup_||",
-    "*Uno reverse card*"
+    "*Uno reverse card*",
     "No u!",
     "uwu",
     "***aRe yOU sUrE AbOUt thAT?***"
