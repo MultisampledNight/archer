@@ -102,6 +102,14 @@ ARCH_RESPONSES = [
     "Arch for the win!"
 ]
 
+RM_RESPONSES = [
+    "YOLO!!!!!! ||Nur ein Witz. Wer würde denn auch so verrückt sein und einfach etwas löschen. _Erinnert sich an sein Legacy-Backup_||",
+    "*Uno reverse card*"
+    "No u!",
+    "uwu",
+    "***aRe yOU sUrE AbOUt thAT?***"
+]
+
 
 class Settings:
     prefix = "archer "
@@ -129,16 +137,20 @@ class Settings:
             fh.write(json.dumps(as_dict))
 
     def load(self, guild: discord.Guild):
+        """ Load the settings from our settings-file. """
         try:
             with open(SAVEFILE) as fh:
                 as_dict = json.loads(fh.read())
+
             self.prefix = as_dict.get("prefix", "archer ")
             self.roles_msg = as_dict.get("roles_msg", None)
             self.roles_channel = as_dict.get("roles_channel", None)
+
             if as_dict.get("mod_role", None):
                 self.mod_role = guild.get_role(as_dict["mod_role"])
             else:
                 self.mod_role = None
+
             self.distraction_probability = as_dict.get(
                 "distraction_probability", 100)
             self.roles = {emoji: guild.get_role(
@@ -221,7 +233,7 @@ async def whoami(command, message):
 
 
 async def rm(command, message):
-    await message.channel.send("YOLO!!!!!! ||Nur ein Witz. Wer würde denn auch so verrückt sein und einfach etwas löschen. _Erinnert sich an sein Legacy-Backup_||")
+    await message.channel.send(random.choice(RM_RESPONSES))
 
 
 async def set_mod_role(command, message):
