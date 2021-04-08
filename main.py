@@ -86,7 +86,7 @@ HELP_MSG = """\
 April 2021
 ```
 """
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 SAVEFILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "SETTINGS")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
 EMOJI_REGEX = re.compile("<:.+:([0-9]+)>")
@@ -193,6 +193,10 @@ async def set_prefix(command, message):
 
 
 async def show(command, message):
+    if settings.mod_role:
+        mod_role = settings.mod_role.name
+    else:
+        mod_role = "Noch nicht gesetzt."
     await message.channel.send(f"""\
 - Version: `{VERSION}`
 - Moderator-Rolle: `{settings.mod_role.name}`
