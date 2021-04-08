@@ -86,7 +86,7 @@ HELP_MSG = """\
 April 2021
 ```
 """
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 SAVEFILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "SETTINGS")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
 EMOJI_REGEX = re.compile("<:.+:([0-9]+)>")
@@ -159,6 +159,26 @@ def user_has_mod_perm(guild: discord.Guild, user_id: int) -> bool:
     return user_id == admin_id or settings.mod_role in user.roles
 
 
+async def reaction_roles_message() -> discord.Message:
+    channel = client.get_channel(settings.roles_channel)
+    message = await channel.fetch_message(settings.roles_msg)
+    return message
+
+
+def pretty_role_emoji_assoc() -> str:
+    return "\n".join(map(
+        lambda pair: f"  {client.get_emoji(int(pair[0]))} → `{pair[1].name}`",
+        settings.roles.items()
+    ))
+
+
+async def edit_reaction_roles_message():
+    if settings.roles_msg and settings.roles_channel:
+        message = await reaction_roles_message()
+        new_content = f"Benutze die Reaktionen unter dieser Nachricht, um dir selber Rollen zu geben.\n{pretty_role_emoji_assoc()}"
+        await message.edit(content=new_content)
+
+
 async def help(command, message):
     await message.channel.send(HELP_MSG)
 
@@ -173,17 +193,13 @@ async def set_prefix(command, message):
 
 
 async def show(command, message):
-    reaction_roles = "\n".join(map(
-        lambda pair: f"  {client.get_emoji(int(pair[0]))} → `{pair[1].name}`",
-        settings.roles.items()
-    ))
     await message.channel.send(f"""\
 - Version: `{VERSION}`
 - Moderator-Rolle: `{settings.mod_role.name}`
 - Ablenkungswahrscheinlichkeit: `{settings.distraction_probability} %`
 - Präfix: `{settings.prefix}`
 - Reaction Roles:
-{reaction_roles}""")
+{pretty_role_emoji_assoc()}""")
 
 
 async def whoami(command, message):
@@ -227,6 +243,7 @@ async def send_role_message(command, message):
     # add reactions to easily click on them
     for emoji in map(lambda id: get(message.guild.emojis, id=int(id)), settings.roles.keys()):
         await message.add_reaction(emoji)
+    await edit_reaction_roles_message()
 
 
 async def add_role(command, message):
@@ -255,10 +272,10 @@ async def add_role(command, message):
     # add the new role to the message, if it was sent yet
     if settings.roles_msg is None:
         return
-    channel = client.get_channel(settings.roles_channel)
-    message = await channel.fetch_message(settings.roles_msg)
+    message = await reaction_roles_message()
     emoji = get(message.guild.emojis, id=int(emoji_id))
     await message.add_reaction(emoji)
+    await edit_reaction_roles_message()
 
 
 async def remove_role(command, message):
@@ -282,10 +299,10 @@ async def remove_role(command, message):
 
     if settings.roles_msg is None:
         return
-    channel = client.get_channel(settings.roles_channel)
-    message = await channel.fetch_message(settings.roles_msg)
+    message = await reaction_roles_message()
     emoji = get(message.guild.emojis, id=int(emoji_id))
     await message.remove_reaction(emoji, message.author)
+    await edit_reaction_roles_message()
 
 
 async def distraction_probability(command, message):
