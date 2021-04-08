@@ -236,36 +236,30 @@ async def add_role(command, message):
 
 
 async def remove_role(command, message):
-    if len(command) < 3:
-        await message.channel.send("Es wurden zu wenig Argumente angegeben.")
+    if len(command) < 2:
+        await message.channel.send("Kein Emoji angegeben.")
         return
 
     emoji_match = EMOJI_REGEX.match(command[1])
     if emoji_match is None:
-        await message.channel.send("Das erste Argument scheint kein custom Emoji sein.")
+        await message.channel.send("Das Argument scheint kein custom Emoji sein.")
         return
     emoji_id = emoji_match.group(1)
 
-    role = get(message.guild.roles, name=command[2])
-    if role is None:
-        await message.channel.send("Diese Rolle scheint es nicht zu geben.")
-        return
-    if role in settings.roles.values():
-        await message.channel.send("Die Rolle ist bereits verlinkt.")
+    if emoji_id not in settings.roles.keys():
+        await message.channel.send("Es gibt gar keine Rolle für diesen Emoji.")
         return
 
-    settings.roles[emoji_id] = role
+    del settings.roles[emoji_id]
     settings.save()
-    await message.channel.send("Rolle verlinkt.")
+    await message.channel.send("Rolle gelöscht.")
 
-    # add the new role to the message, if it was sent yet
     if settings.roles_msg is None:
         return
     channel = client.get_channel(settings.roles_channel)
     message = await channel.fetch_message(settings.roles_msg)
     emoji = get(message.guild.emojis, id=int(emoji_id))
-    await message.add_reaction(emoji)
-
+    await message.remove_reaction(emoji, message.author)
 
 COMMANDS = {
     "help": {"fn": help, "requires_mod": False},
