@@ -139,15 +139,18 @@ class Settings:
                 self.mod_role = guild.get_role(as_dict["mod_role"])
             else:
                 self.mod_role = None
-            self.distraction_probability = as_dict.get("distraction_probability", 100)
-            self.roles = {emoji: guild.get_role(role) for emoji, role in as_dict.get("roles", {}).items()}
+            self.distraction_probability = as_dict.get(
+                "distraction_probability", 100)
+            self.roles = {emoji: guild.get_role(
+                role) for emoji, role in as_dict.get("roles", {}).items()}
         except:
             # it probably just doesn't exist yet
             pass
         self.loaded = True
 
 
-intents = discord.Intents(members=True, emojis=True, messages=True, reactions=True, guilds=True)
+intents = discord.Intents(members=True, emojis=True,
+                          messages=True, reactions=True, guilds=True)
 client = discord.Client(intents=intents)
 settings = Settings()
 
@@ -317,12 +320,19 @@ async def distraction_probability(command, message):
     if len(command) < 2:
         await message.channel.send("Keine Wahrscheinlichkeit angegeben.")
         return
-    
+
+    # Do some checks first if the given argument is valid or not
     if not command[1].isdigit():
         await message.channel.send("Die Wahrscheinlichkeit scheint keine Zahl zu sein.")
         return
 
-    settings.distraction_probability = int(command[1])
+    new_distract_num = int(command[1])
+
+    if (new_distract_num > 100):
+        await message.channel.send("Bitte eine Zahl im Bereich von 0-100.")
+        return
+
+    settings.distraction_probability = new_distract_num
     settings.save()
     await message.channel.send(f"Ablenkungswahrscheinlichkeit auf `{settings.distraction_probability} %` gesetzt.")
 
@@ -370,9 +380,11 @@ async def on_message(message):
         if line.startswith(settings.prefix):
             is_command = True
             command = line[len(settings.prefix):]  # strip the prefix
-            command = shlex.split(command)  # shlex allows easy shell-like parsing
+            # shlex allows easy shell-like parsing
+            command = shlex.split(command)
 
-            logging.info(f"Command issued by {message.author.name}#{message.author.discriminator}: {command}")
+            logging.info(
+                f"Command issued by {message.author.name}#{message.author.discriminator}: {command}")
 
             if not command:  # e.g. just 'archer' or 'archer '
                 continue
@@ -388,8 +400,8 @@ async def on_message(message):
                 return
 
     if "arch" in message.content.lower() and \
-        not is_command and \
-        random.randint(1, 100) < settings.distraction_probability:
+            not is_command and \
+            random.randint(1, 100) < settings.distraction_probability:
         await message.channel.send(random.choice(ARCH_RESPONSES))
 
 
