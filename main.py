@@ -86,6 +86,7 @@ HELP_MSG = """\
 April 2021
 ```
 """
+VERSION = "0.1.0"
 SAVEFILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "SETTINGS")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
 EMOJI_REGEX = re.compile("<:.+:([0-9]+)>")
@@ -172,11 +173,17 @@ async def set_prefix(command, message):
 
 
 async def show(command, message):
+    reaction_roles = "\n".join(map(
+        lambda pair: f"  {client.get_emoji(int(pair[0]))} → `{pair[1].name}`",
+        settings.roles.items()
+    ))
     await message.channel.send(f"""\
+- Version: `{VERSION}`
 - Moderator-Rolle: `{settings.mod_role.name}`
 - Ablenkungswahrscheinlichkeit: `{settings.distraction_probability} %`
 - Präfix: `{settings.prefix}`
-- Reaction Roles: `{"`, `".join(map(lambda role: role.name, settings.roles.values()))}`""")
+- Reaction Roles:
+{reaction_roles}""")
 
 
 async def whoami(command, message):
