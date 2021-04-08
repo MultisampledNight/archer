@@ -81,7 +81,7 @@ HELP_MSG = """\
     wahrscheinlich auch ohne Ping schnell sehen.
 
 ## AUTHORS
-    /home/donald4444#3512, TornaxO7#7596, MultisampledNight#2425, 
+    /home/donald4444#3512, TornaxO7#7596, MultisampledNight#2425
 
 April 2021
 ```
