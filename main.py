@@ -52,6 +52,13 @@ HELP_MSG = """\
     show
         Zeigt die aktuellen Einstellungen (Moderator-Rolle, Präfix...) an.
 
+    leetify <args>...
+        1337iziert alle gegebenen Argumente und sendet das Ergebnis zurück.
+
+    borkify <args>...
+        Macht die gegebenen Argumente kaputt, indem Anfangs- und Endbuchstaben
+        vertauscht werden.
+
     set-mod-role <role-name>
         Setzt die Moderationsrolle, welche für das Verändern von Einstellungen
         benötigt wird.
@@ -87,7 +94,7 @@ April 2021
 ```
 """
 
-VERSION = "0.1.3"
+VERSION = "0.1.4"
 SAVEFILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "SETTINGS")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
 EMOJI_REGEX = re.compile("<:.+:([0-9]+)>")
@@ -232,6 +239,42 @@ async def whoami(command, message):
         await message.channel.send(f"Du darfst keine Einstellungen vornehmen.")
 
 
+async def leetify(command, message):
+    if len(command) < 2:
+        await message.channel.send("Mindestens ein Argument ist zum leetifien benötigt.")
+        return
+
+    lame = " ".join(command[1:])
+    leetified = lame\
+        .replace("l", "1")\
+        .replace("L", "1")\
+        .replace("i", "1")\
+        .replace("I", "1")\
+        .replace("t", "7")\
+        .replace("T", "7")\
+        .replace("e", "3")\
+        .replace("E", "3")\
+        .replace("a", "4")\
+        .replace("A", "4")\
+        .replace("b", "8")\
+        .replace("B", "8")\
+        .replace("o", "0")\
+        .replace("O", "0")
+    await message.channel.send(leetified)
+
+
+async def borkify(command, message):
+    if len(command) < 2:
+        await message.channel.send("Mindestens ein Argument ist zum borkifien benötigt.")
+
+    words = " ".join(command[1:]).split(" ")  # avoid weird use of " because of shlex
+    borkified = []
+    for word in words:
+        new_word = f"{word[-1]}{word[1:-1]}{word[0]}"
+        borkified.append(new_word)
+    await message.channel.send(" ".join(borkified))
+
+
 async def rm(command, message):
     await message.channel.send(random.choice(RM_RESPONSES))
 
@@ -354,6 +397,8 @@ COMMANDS = {
     "prefix": {"fn": set_prefix, "requires_mod": True},
     "show": {"fn": show, "requires_mod": False},
     "whoami": {"fn": whoami, "requires_mod": False},
+    "leetify": {"fn": leetify, "requires_mod": False},
+    "borkify": {"fn": borkify, "requires_mod": False},
     "rm": {"fn": rm, "requires_mod": True},
     "set-mod-role": {"fn": set_mod_role, "requires_mod": True},
     "send-role-message": {"fn": send_role_message, "requires_mod": True},
