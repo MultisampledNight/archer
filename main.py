@@ -94,7 +94,7 @@ April 2021
 ```
 """
 
-VERSION = "0.1.4"
+VERSION = "0.1.5"
 SAVEFILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "SETTINGS")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
 EMOJI_REGEX = re.compile("<:.+:([0-9]+)>")
@@ -399,7 +399,7 @@ COMMANDS = {
     "whoami": {"fn": whoami, "requires_mod": False},
     "leetify": {"fn": leetify, "requires_mod": False},
     "borkify": {"fn": borkify, "requires_mod": False},
-    "rm": {"fn": rm, "requires_mod": True},
+    "rm": {"fn": rm, "requires_mod": False},
     "set-mod-role": {"fn": set_mod_role, "requires_mod": True},
     "send-role-message": {"fn": send_role_message, "requires_mod": True},
     "add-role": {"fn": add_role, "requires_mod": True},
