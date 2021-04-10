@@ -15,6 +15,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import datetime
 import json
 import logging
 import os
@@ -23,10 +24,12 @@ import re
 import shlex
 
 import discord
+import lxml.html
+import requests
 from discord.utils import get
 
 
-HELP_MSG = """\
+HELP_MSG = ["""\
 ```md
 # ARCHER(1)
 
@@ -38,7 +41,9 @@ HELP_MSG = """\
 
 ## DESCRIPTION
     Ein Bot für den deutschen Arch Linux Server
-
+```""",
+"""\
+```md
 ## COMMANDS
     help
         Zeigt diese Hilfe an.
@@ -59,10 +64,14 @@ HELP_MSG = """\
         Macht die gegebenen Argumente kaputt, indem Anfangs- und Endbuchstaben
         vertauscht werden.
 
+    lookup <package>
+        Sucht nach dem angegebenen Paket auf https://archlinux.org/packages/ und
+        gibt die Version, die Größe und das Erstellungsdatum zurück.
+
     set-mod-role <role-name>
         Setzt die Moderationsrolle, welche für das Verändern von Einstellungen
         benötigt wird.
-    
+
     send-role-message <channel-id>
         Sendet die Nachricht mit der Rollenauswahl in den angegebenen Channel.
 
@@ -77,7 +86,9 @@ HELP_MSG = """\
         Setzt eine neue Ablenkungswahrscheinlichkeit. Die Wahrscheinlichkeit
         sollte zum Beispiel für 50 % als 50 angegeben werden, also ohne das
         Prozentzeichen.
-
+```""",
+"""\
+```md
 ## BUGS
     Es können nur Custom Emojis als Reaction Roles verwendet werden.
     Manchmal verselbstständigt er sich. Aber nur manchmal.
@@ -91,10 +102,9 @@ HELP_MSG = """\
     /home/donald4444#3512, TornaxO7#7596, MultisampledNight#2425
 
 April 2021
-```
-"""
+```"""]
 
-VERSION = "0.1.5"
+VERSION = "0.1.6"
 SAVEFILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "SETTINGS")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
 EMOJI_REGEX = re.compile("<:.+:([0-9]+)>")
@@ -116,6 +126,67 @@ RM_RESPONSES = [
     "uwu",
     "***aRe yOU sUrE AbOUt thAT?***"
 ]
+
+
+class Package:
+    def __init__(
+            self,
+            name: str,
+            version: str,
+            size: int,
+            creation_date: datetime.date,
+            publish_date: datetime.date):
+        self.name = name
+        self.version = version
+        self.size = size
+        self.creation_date = creation_date
+        self.publish_date = publish_date
+
+    def by_name(name: str):
+        """
+        Returns a new Arch-Package for the given package name. Note that this
+        only searchs in the standard repositories, not in the AUR.
+        """
+        # first search for the package using the "search packages" site
+        response = requests.get(f"https://archlinux.org/packages/?q={name}", stream=True)
+        if response.status_code != 200:
+            return None
+        response.raw.decode_content = True
+
+        tree = lxml.html.parse(response.raw)
+        element = tree.xpath("/html/body/div[2]/div[3]/table/tbody/tr/td[3]/a")
+        if not element:
+            return None
+        
+        # then actually get the package contents
+        package_url = f"https://archlinux.org{element[0].get('href')}"
+        response = requests.get(package_url, stream=True)
+        if response.status_code != 200:
+            return None
+        response.raw.decode_content = True
+
+        tree = lxml.html.parse(response.raw)
+        name = tree.xpath("/html/body/div[2]/div[2]/div[2]/meta[1]")[0].get("content")
+        version = tree.xpath("/html/body/div[2]/div[2]/div[2]/meta[2]")[0].get("content")
+        size = int(tree.xpath("/html/body/div[2]/div[2]/div[2]/meta[4]")[0].get("content"))
+        creation_date = datetime.date.fromisoformat(tree.xpath("/html/body/div[2]/div[2]/div[2]/meta[5]")[0].get("content"))
+        publish_date = datetime.date.fromisoformat(tree.xpath("/html/body/div[2]/div[2]/div[2]/meta[6]")[0].get("content"))
+        return Package(name, version, size, creation_date, publish_date)
+    
+    def __repr__(self):
+        # do we need to represent in MiB?
+        mibsize = self.size / (1024.0 ** 2)
+        if int(mibsize):
+            size = f"{round(mibsize, 4)} MiB"
+        else:
+            # nope, display in KiB
+            size = f"{round(self.size / 1024.0, 4)} KiB"
+        return f"""\
+Name: `{self.name}`
+Version: `{self.version}`
+Größe: `{size}`
+Erstellungsdatum: `{self.creation_date.strftime("%d.%m.%Y, %B")}`
+"""
 
 
 class Settings:
@@ -206,7 +277,9 @@ async def edit_reaction_roles_message():
 
 
 async def help(command, message):
-    await message.channel.send(HELP_MSG)
+    # split up into 2000 chars per message because 2000 is the limit
+    for part in HELP_MSG:
+        await message.channel.send(part)
 
 
 async def set_prefix(command, message):
@@ -273,6 +346,18 @@ async def borkify(command, message):
         new_word = f"{word[-1]}{word[1:-1]}{word[0]}"
         borkified.append(new_word)
     await message.channel.send(" ".join(borkified))
+
+
+async def lookup(command, message):
+    if len(command) < 2:
+        await message.channel.send("Es wurde kein Paket zum Nachschauen angegeben.")
+        return
+
+    package = Package.by_name(command[1])
+    if package is None:
+        await message.channel.send("Das Paket scheint nicht zu existieren.")
+        return
+    await message.channel.send(repr(package))
 
 
 async def rm(command, message):
@@ -399,6 +484,7 @@ COMMANDS = {
     "whoami": {"fn": whoami, "requires_mod": False},
     "leetify": {"fn": leetify, "requires_mod": False},
     "borkify": {"fn": borkify, "requires_mod": False},
+    "lookup": {"fn": lookup, "requires_mod": False},
     "rm": {"fn": rm, "requires_mod": False},
     "set-mod-role": {"fn": set_mod_role, "requires_mod": True},
     "send-role-message": {"fn": send_role_message, "requires_mod": True},
