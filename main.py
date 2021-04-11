@@ -104,7 +104,7 @@ HELP_MSG = ["""\
 April 2021
 ```"""]
 
-VERSION = "0.1.6"
+VERSION = "0.1.7"
 SAVEFILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "SETTINGS")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
 EMOJI_REGEX = re.compile("<:.+:([0-9]+)>")
@@ -416,6 +416,12 @@ async def add_role(command, message):
         await message.channel.send("Die Rolle ist bereits verlinkt.")
         return
 
+    # check if the emoji exists at all in the guild
+    emoji = get(message.guild.emojis, id=int(emoji_id))
+    if emoji is None:
+        await message.channel.send("Der Emoji existiert nicht auf diesem Server.")
+        return
+
     settings.roles[emoji_id] = role
     settings.save()
     await message.channel.send("Rolle verlinkt.")
@@ -424,7 +430,6 @@ async def add_role(command, message):
     if settings.roles_msg is None:
         return
     message = await reaction_roles_message()
-    emoji = get(message.guild.emojis, id=int(emoji_id))
     await message.add_reaction(emoji)
     await edit_reaction_roles_message()
 
