@@ -105,7 +105,8 @@ April 2021
 ```"""]
 
 VERSION = "0.1.7"
-SAVEFILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "SETTINGS")
+PERSISTENT_PATH= os.path.join(os.path.dirname(os.path.realpath(__file__)), "persistent")
+SAVEFILE = os.path.join(PERSISTENT_PATH, "settings")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
 EMOJI_REGEX = re.compile("<:.+:([0-9]+)>")
 ARCH_RESPONSES = [
@@ -585,11 +586,16 @@ async def on_raw_reaction_remove(payload):
 
 
 if __name__ == "__main__":
-    with open("TOKEN") as fh:
-        token = fh.read()
+    token = os.getenv('TOKEN')
+    admin_id = os.getenv('ADMIN_ID')
 
-    with open("ADMIN-ID") as fh:
-        admin_id = int(fh.read())
+    if token is None:
+        with open(os.path.join(PERSISTENT_PATH, "TOKEN")) as fh:
+            token = fh.read()
+
+    if admin_id is None:
+        with open(os.path.join(PERSISTENT_PATH, "ADMIN-ID")) as fh:
+            admin_id = int(fh.read())
 
     logging.basicConfig(encoding="utf-8", format=LOGFORMAT, level=logging.INFO)
     client.run(token)
