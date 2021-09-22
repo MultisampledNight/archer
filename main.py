@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#   Copyright (c) 2021    MultisampledNight
+#   Copyright (c) 2021    MultisampledNight, TornaxO7, Donald4444
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
