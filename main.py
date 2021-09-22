@@ -104,7 +104,7 @@ HELP_MSG = ["""\
 April 2021
 ```"""]
 
-VERSION = "0.1.7"
+VERSION = "0.2.0"
 PERSISTENT_PATH= os.path.join(os.path.dirname(os.path.realpath(__file__)), "persistent")
 SAVEFILE = os.path.join(PERSISTENT_PATH, "settings")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
