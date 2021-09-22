@@ -586,8 +586,8 @@ async def on_raw_reaction_remove(payload):
 
 
 if __name__ == "__main__":
-    token = os.getenv('TOKEN')
-    admin_id = os.getenv('ADMIN_ID')
+    token = os.getenv("TOKEN")
+    admin_id = os.getenv("ADMIN_ID")
 
     if token is None:
         with open(os.path.join(PERSISTENT_PATH, "TOKEN")) as fh:
