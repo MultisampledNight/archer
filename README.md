@@ -25,13 +25,16 @@ python3 -m venv archer_venv
 source archer_venv/bin/activate
 pip install -r requirements.txt
 ```
-Then, create a new file called `TOKEN` in the future working directory of the
-bot. In there, store ONLY the token you get from the [Discord Developer
-Portal](https://discord.com/developers/applications/) when creating a new
-application. Make sure not to leak it.
+Then, go into the `persistent` directory of the further working directory and
+create a new file called `TOKEN`. In there, store ONLY the token you get from
+the [Discord Developer Portal](https://discord.com/developers/applications/)
+when creating a new application. Make sure not to leak it.
 
 Next, create a file `ADMIN-ID` in the same folder as the token and put your
 Discord-ID into it. It will be used as a mod-role override.
+
+Optionally you can set the enviroment-variables `TOKEN` and `ADMIN_ID` to the
+corresponding values.
 
 Afterwards, in the same terminal where
 you created the venv before, do:
@@ -40,4 +43,18 @@ python3 main.py
 ```
 ...and the bot should run now.
 
-
+### Docker
+If you want to use docker you should orientate on the following docker-compose
+example:
+```yml
+version: '3.7'
+services:
+  bot:
+    build:
+      context: ./
+    volumes:
+      - ./volume:/archer/persistent
+    environment:
+      - TOKEN=YOUR_TOKEN
+      - ADMIN_ID=YOUR_ID
+```

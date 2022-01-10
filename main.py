@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#   Copyright (c) 2021    MultisampledNight
+#   Copyright (c) 2021    MultisampledNight, TornaxO7, Donald4444
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import datetime
 import json
 import logging
 import os
@@ -23,10 +24,12 @@ import re
 import shlex
 
 import discord
+import lxml.html
+import requests
 from discord.utils import get
 
 
-HELP_MSG = """\
+HELP_MSG = ["""\
 ```md
 # ARCHER(1)
 
@@ -38,7 +41,9 @@ HELP_MSG = """\
 
 ## DESCRIPTION
     Ein Bot für den deutschen Arch Linux Server
-
+```""",
+"""\
+```md
 ## COMMANDS
     help
         Zeigt diese Hilfe an.
@@ -52,10 +57,21 @@ HELP_MSG = """\
     show
         Zeigt die aktuellen Einstellungen (Moderator-Rolle, Präfix...) an.
 
+    leetify <args>...
+        1337iziert alle gegebenen Argumente und sendet das Ergebnis zurück.
+
+    borkify <args>...
+        Macht die gegebenen Argumente kaputt, indem Anfangs- und Endbuchstaben
+        vertauscht werden.
+
+    lookup <package>
+        Sucht nach dem angegebenen Paket auf https://archlinux.org/packages/ und
+        gibt die Version, die Größe und das Erstellungsdatum zurück.
+
     set-mod-role <role-name>
         Setzt die Moderationsrolle, welche für das Verändern von Einstellungen
         benötigt wird.
-    
+
     send-role-message <channel-id>
         Sendet die Nachricht mit der Rollenauswahl in den angegebenen Channel.
 
@@ -70,7 +86,9 @@ HELP_MSG = """\
         Setzt eine neue Ablenkungswahrscheinlichkeit. Die Wahrscheinlichkeit
         sollte zum Beispiel für 50 % als 50 angegeben werden, also ohne das
         Prozentzeichen.
-
+```""",
+"""\
+```md
 ## BUGS
     Es können nur Custom Emojis als Reaction Roles verwendet werden.
     Manchmal verselbstständigt er sich. Aber nur manchmal.
@@ -84,11 +102,11 @@ HELP_MSG = """\
     /home/donald4444#3512, TornaxO7#7596, MultisampledNight#2425
 
 April 2021
-```
-"""
+```"""]
 
-VERSION = "0.1.3"
-SAVEFILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "SETTINGS")
+VERSION = "0.2.0"
+PERSISTENT_PATH= os.path.join(os.path.dirname(os.path.realpath(__file__)), "persistent")
+SAVEFILE = os.path.join(PERSISTENT_PATH, "settings")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
 EMOJI_REGEX = re.compile("<:.+:([0-9]+)>")
 ARCH_RESPONSES = [
@@ -109,6 +127,67 @@ RM_RESPONSES = [
     "uwu",
     "***aRe yOU sUrE AbOUt thAT?***"
 ]
+
+
+class Package:
+    def __init__(
+            self,
+            name: str,
+            version: str,
+            size: int,
+            creation_date: datetime.date,
+            publish_date: datetime.date):
+        self.name = name
+        self.version = version
+        self.size = size
+        self.creation_date = creation_date
+        self.publish_date = publish_date
+
+    def by_name(name: str):
+        """
+        Returns a new Arch-Package for the given package name. Note that this
+        only searchs in the standard repositories, not in the AUR.
+        """
+        # first search for the package using the "search packages" site
+        response = requests.get(f"https://archlinux.org/packages/?q={name}", stream=True)
+        if response.status_code != 200:
+            return None
+        response.raw.decode_content = True
+
+        tree = lxml.html.parse(response.raw)
+        element = tree.xpath("/html/body/div[2]/div[3]/table/tbody/tr/td[3]/a")
+        if not element:
+            return None
+        
+        # then actually get the package contents
+        package_url = f"https://archlinux.org{element[0].get('href')}"
+        response = requests.get(package_url, stream=True)
+        if response.status_code != 200:
+            return None
+        response.raw.decode_content = True
+
+        tree = lxml.html.parse(response.raw)
+        name = tree.xpath("/html/body/div[2]/div[2]/div[2]/meta[1]")[0].get("content")
+        version = tree.xpath("/html/body/div[2]/div[2]/div[2]/meta[2]")[0].get("content")
+        size = int(tree.xpath("/html/body/div[2]/div[2]/div[2]/meta[4]")[0].get("content"))
+        creation_date = datetime.date.fromisoformat(tree.xpath("/html/body/div[2]/div[2]/div[2]/meta[5]")[0].get("content"))
+        publish_date = datetime.date.fromisoformat(tree.xpath("/html/body/div[2]/div[2]/div[2]/meta[6]")[0].get("content"))
+        return Package(name, version, size, creation_date, publish_date)
+    
+    def __repr__(self):
+        # do we need to represent in MiB?
+        mibsize = self.size / (1024.0 ** 2)
+        if int(mibsize):
+            size = f"{round(mibsize, 4)} MiB"
+        else:
+            # nope, display in KiB
+            size = f"{round(self.size / 1024.0, 4)} KiB"
+        return f"""\
+Name: `{self.name}`
+Version: `{self.version}`
+Größe: `{size}`
+Erstellungsdatum: `{self.creation_date.strftime("%d.%m.%Y, %B")}`
+"""
 
 
 class Settings:
@@ -199,7 +278,9 @@ async def edit_reaction_roles_message():
 
 
 async def help(command, message):
-    await message.channel.send(HELP_MSG)
+    # split up into 2000 chars per message because 2000 is the limit
+    for part in HELP_MSG:
+        await message.channel.send(part)
 
 
 async def set_prefix(command, message):
@@ -230,6 +311,54 @@ async def whoami(command, message):
         await message.channel.send(f"Du darfst Einstellungen vornehmen.")
     else:
         await message.channel.send(f"Du darfst keine Einstellungen vornehmen.")
+
+
+async def leetify(command, message):
+    if len(command) < 2:
+        await message.channel.send("Mindestens ein Argument ist zum leetifien benötigt.")
+        return
+
+    lame = " ".join(command[1:])
+    leetified = lame\
+        .replace("l", "1")\
+        .replace("L", "1")\
+        .replace("i", "1")\
+        .replace("I", "1")\
+        .replace("t", "7")\
+        .replace("T", "7")\
+        .replace("e", "3")\
+        .replace("E", "3")\
+        .replace("a", "4")\
+        .replace("A", "4")\
+        .replace("b", "8")\
+        .replace("B", "8")\
+        .replace("o", "0")\
+        .replace("O", "0")
+    await message.channel.send(leetified)
+
+
+async def borkify(command, message):
+    if len(command) < 2:
+        await message.channel.send("Mindestens ein Argument ist zum borkifien benötigt.")
+
+    words = " ".join(command[1:]).split(" ")  # avoid weird use of " because of shlex
+    borkified = []
+    for word in words:
+        new_word = f"{word[-1]}{word[1:-1]}{word[0]}"
+        borkified.append(new_word)
+    await message.channel.send(" ".join(borkified))
+
+
+async def lookup(command, message):
+    if len(command) < 2:
+        await message.channel.send("Es wurde kein Paket zum Nachschauen angegeben.")
+        return
+
+    package = Package.by_name(command[1])
+    if package is None:
+        await message.channel.send("Das Paket scheint nicht zu existieren.")
+        return
+    await message.channel.send(repr(package))
 
 
 async def rm(command, message):
@@ -288,6 +417,12 @@ async def add_role(command, message):
         await message.channel.send("Die Rolle ist bereits verlinkt.")
         return
 
+    # check if the emoji exists at all in the guild
+    emoji = get(message.guild.emojis, id=int(emoji_id))
+    if emoji is None:
+        await message.channel.send("Der Emoji existiert nicht auf diesem Server.")
+        return
+
     settings.roles[emoji_id] = role
     settings.save()
     await message.channel.send("Rolle verlinkt.")
@@ -296,7 +431,6 @@ async def add_role(command, message):
     if settings.roles_msg is None:
         return
     message = await reaction_roles_message()
-    emoji = get(message.guild.emojis, id=int(emoji_id))
     await message.add_reaction(emoji)
     await edit_reaction_roles_message()
 
@@ -354,7 +488,10 @@ COMMANDS = {
     "prefix": {"fn": set_prefix, "requires_mod": True},
     "show": {"fn": show, "requires_mod": False},
     "whoami": {"fn": whoami, "requires_mod": False},
-    "rm": {"fn": rm, "requires_mod": True},
+    "leetify": {"fn": leetify, "requires_mod": False},
+    "borkify": {"fn": borkify, "requires_mod": False},
+    "lookup": {"fn": lookup, "requires_mod": False},
+    "rm": {"fn": rm, "requires_mod": False},
     "set-mod-role": {"fn": set_mod_role, "requires_mod": True},
     "send-role-message": {"fn": send_role_message, "requires_mod": True},
     "add-role": {"fn": add_role, "requires_mod": True},
@@ -449,11 +586,16 @@ async def on_raw_reaction_remove(payload):
 
 
 if __name__ == "__main__":
-    with open("TOKEN") as fh:
-        token = fh.read()
+    token = os.getenv("TOKEN")
+    admin_id = os.getenv("ADMIN_ID")
 
-    with open("ADMIN-ID") as fh:
-        admin_id = int(fh.read())
+    if token is None:
+        with open(os.path.join(PERSISTENT_PATH, "TOKEN")) as fh:
+            token = fh.read()
+
+    if admin_id is None:
+        with open(os.path.join(PERSISTENT_PATH, "ADMIN-ID")) as fh:
+            admin_id = int(fh.read())
 
     logging.basicConfig(encoding="utf-8", format=LOGFORMAT, level=logging.INFO)
     client.run(token)
