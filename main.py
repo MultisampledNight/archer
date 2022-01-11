@@ -117,7 +117,8 @@ ARCH_RESPONSES = [
     "arch?",
     "Habe ich Arch gehört?",
     "Schonmal Arch installiert?",
-    "Arch for the win!"
+    "Arch for the win!",
+    "***VERY LOUD*** https://www.youtube.com/watch?v=eb0hUjewRgE",
 ]
 
 RM_RESPONSES = [
