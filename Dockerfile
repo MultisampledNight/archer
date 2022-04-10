@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
-FROM python:3.9.7-alpine
+FROM alpine:3.14
 
-RUN apk add --update --no-cache g++ gcc libxslt-dev
+RUN apk add --update --no-cache gcc python3 python3-dev musl-dev py3-requests py3-lxml py3-pip
 WORKDIR /archer
 COPY . .
-RUN pip install -r requirements.txt
-CMD [ "python", "main.py" ]
+RUN pip3 install -r requirements.docker.txt
+CMD [ "python3", "main.py" ]
