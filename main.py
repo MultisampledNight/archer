@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#   Copyright (c) 2021    MultisampledNight, TornaxO7, Donald4444
+#   Copyright (c) 2022    MultisampledNight, TornaxO7, UltimateNyn
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -99,12 +99,12 @@ HELP_MSG = ["""\
     wahrscheinlich auch ohne Ping schnell sehen.
 
 ## AUTHORS
-    /home/donald4444#3512, TornaxO7#7596, MultisampledNight#2425
+    UltimateNyn#3512, TornaxO7#7596, MultisampledNight#2425
 
 April 2021
 ```"""]
 
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 PERSISTENT_PATH= os.path.join(os.path.dirname(os.path.realpath(__file__)), "persistent")
 SAVEFILE = os.path.join(PERSISTENT_PATH, "settings")
 LOGFORMAT = "[%(asctime)s] <%(levelname)s> %(message)s"
